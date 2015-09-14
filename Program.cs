@@ -3,17 +3,17 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using TwixelAPI;
-using TwixelAPI.Constants;
-
+using TwitchCSharp.Clients;
+using TwitchCSharp.Models;
 
 namespace SharpBot_CLI
 {
     class Program
     {
-        static Twixel twixel;       
+        static TwitchNamedClient client;
         static IniFile iniFile;
         static LightCollection lights;
         static IRC.IrcClient irc;
@@ -34,6 +34,8 @@ namespace SharpBot_CLI
             {
                 iniFile = new IniFile();
                 iniFile.Section("Twitch").Set("StreamerName", "?");
+                iniFile.Section("Twitch").Set("OAuthKey", "?");
+                iniFile.Section("Twitch").Set("ClientID", "?");
                 iniFile.Section("Twitch").Set("BotName", "?");
                 iniFile.Section("PhilipsHue").Set("Username", "?");
                 iniFile.Section("PhilipsHue").Set("AutoRegister", "false");
@@ -183,18 +185,28 @@ namespace SharpBot_CLI
             }
         }
 
-        private static void GetInputTwitch(string result)
+        private static void GetInputTwitch(string input)
         {
-            switch (result.ToLower())
+            string[] args = input.Split(' ');
+            switch (args[0].ToLower())            
             {
                 case "help":
                     Console.WriteLine("");
                     Console.WriteLine("Back - Will return you to the main menu");
                     Console.WriteLine("Exit - Will cause the bot to shutdown");
                     break;
-                case "test":
-                    TryToDoThis();
-                    break;                
+                case "connect":
+                    TwitchConnect();
+                    break;
+                case "game":
+                    TwitchUpdateGame(args);
+                    break;
+                case "title":
+                    TwitchUpdateTitle(args);
+                    break;
+                case "followers":
+                    TwitchGetFollower();
+                    break;
                 case "exit":
                     Environment.Exit(0);
                     break;
@@ -212,15 +224,62 @@ namespace SharpBot_CLI
             }
         }
 
+        private static void TwitchUpdateGame(string[] args)
+        {
+            string game = "";
+            for (int i = 1; i < args.Count(); i++)
+            {
+                game += args[i] + " ";
+            }
+
+            game.Trim();
+            game.TrimEnd();
+            client.SetGame(game);            
+        }
+
+        private static void TwitchGetFollower()
+        {
+            Console.WriteLine(client.GetFollowers("cuken").Total) ;
+          
+        }
+
+        private static void TwitchUpdateTitle(string[] args)
+        {
+            string title = "";
+            for (int i = 1; i < args.Count(); i++)
+            {
+                title += args[i] + " ";
+            }
+
+            title.Trim();
+            title.TrimEnd();
+            client.SetTitle(title);
+            
+        }
+
+        private static void TwitchConnect()
+        {
+            string oAuthKey = iniFile.Section("Twitch").Get("OAuthKey");
+            string clientID = iniFile.Section("Twitch").Get("ClientID");
+
+            try
+            {
+                var tempClient = new TwitchAuthenticatedClient(oAuthKey, clientID);
+                string username = tempClient.GetMyChannel().Name;
+                client = new TwitchNamedClient(username, oAuthKey, clientID);
+
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+
+        }
+
         private async static void TryToDoThis()
         {
-            twixel = new Twixel("qafv3esr9ynncqn2ny878vq2fbje5uz", @"http://localhost", Twixel.APIVersion.v3);
-            Channel channel = await twixel.RetrieveChannel("cuken");    
-            Console.WriteLine(channel.views);
-            Console.WriteLine(channel.followers);
-            Console.WriteLine(channel.game);
-            Console.WriteLine(channel.url);
-            Console.ReadLine();
+            
             
         }
 
